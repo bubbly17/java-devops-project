@@ -1,7 +1,7 @@
 pipeline {
     agent any
 
-     tools {
+    tools {
         maven 'maven'
     }
 
@@ -30,14 +30,21 @@ pipeline {
             }
         }
 
+        stage('Check AWS CLI') {
+            steps {
+                bat 'where aws'
+                bat 'aws --version'
+            }
+        }
+
         stage('Upload to S3') {
             steps {
                 script {
                     def version = new Date().format('yyyyMMdd-HHmmss')
-                    def jarFile = "target\\${APP_NAME}-*.jar"
+                    def jarFile = "target\\${APP_NAME}-1.0.0.jar"
 
                     bat """
-                        aws s3 cp ${jarFile} s3://${S3_BUCKET}/${APP_NAME}/${APP_NAME}-${version}.jar --region ${AWS_REGION}
+                        aws s3 cp "${jarFile}" s3://${S3_BUCKET}/${APP_NAME}/${APP_NAME}-${version}.jar --region ${AWS_REGION}
                     """
                 }
             }
