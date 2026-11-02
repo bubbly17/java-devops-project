@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+     tools {
+        maven 'maven'
+    }
+
     environment {
         AWS_REGION = 'ap-south-1'
         S3_BUCKET  = 'vaishnavi-java-jar-artifacts-2026'
