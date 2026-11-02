@@ -1,3 +1,4 @@
+
 pipeline {
     agent any
 
@@ -6,6 +7,8 @@ pipeline {
     }
 
     environment {
+        PATH = "C:\\Program Files\\Amazon\\AWSCLIV2;${env.PATH}"
+
         AWS_REGION = 'ap-south-1'
         S3_BUCKET  = 'vaishnavi-java-jar-artifacts-2026'
         APP_NAME   = 'java-devops-project'
