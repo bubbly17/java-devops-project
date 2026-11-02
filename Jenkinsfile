@@ -7,7 +7,7 @@ pipeline {
     }
 
     environment {
-        PATH = "C:\\Program Files\\Amazon\\AWSCLIV2;${env.PATH}"
+        PATH = "C:\\Users\\Vaishnavi\\AppData\\Local\\Programs\\Amazon\\AWSCLIV2;${env.PATH}"
 
         AWS_REGION = 'ap-south-1'
         S3_BUCKET  = 'vaishnavi-java-jar-artifacts-2026'
