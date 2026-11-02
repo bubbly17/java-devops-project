@@ -16,33 +16,24 @@ pipeline {
 
         stage('Build') {
             steps {
-                sh 'mvn clean package'
+                bat 'mvn clean package'
             }
         }
 
         stage('Verify JAR') {
             steps {
-                sh 'ls -lh target/*.jar'
+                bat 'dir target\\*.jar'
             }
         }
 
         stage('Upload to S3') {
             steps {
                 script {
-                    def jarFile = sh(
-                        script: "ls target/${APP_NAME}-*.jar | head -n 1",
-                        returnStdout: true
-                    ).trim()
+                    def version = new Date().format('yyyyMMdd-HHmmss')
+                    def jarFile = "target\\${APP_NAME}-*.jar"
 
-                    def version = sh(
-                        script: "date +%Y%m%d-%H%M%S",
-                        returnStdout: true
-                    ).trim()
-
-                    sh """
-                        aws s3 cp '${jarFile}' \
-                        's3://${S3_BUCKET}/${APP_NAME}/${APP_NAME}-${version}.jar' \
-                        --region '${AWS_REGION}'
+                    bat """
+                        aws s3 cp ${jarFile} s3://${S3_BUCKET}/${APP_NAME}/${APP_NAME}-${version}.jar --region ${AWS_REGION}
                     """
                 }
             }
