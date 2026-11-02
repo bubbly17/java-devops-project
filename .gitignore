@@ -1,0 +1,25 @@
+# Maven build output
+target/
+
+# Locally generated versioned JAR files
+versions/
+
+# Local JAR version counter
+version.txt
+
+# VS Code settings
+.vscode/
+
+# IntelliJ IDEA files
+.idea/
+*.iml
+
+# Java compiled files
+*.class
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
