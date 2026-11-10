@@ -10,7 +10,7 @@ pipeline {
         AWS_REGION = 'ap-south-1'
         S3_BUCKET  = 'vaishnavi-java-jar-artifacts-2026'
         APP_NAME   = 'java-devops-project'
-        APP_SERVER = '172.31.2.96'
+        APP_SERVER = '172.31.3.96'
     }
 
     stages {
