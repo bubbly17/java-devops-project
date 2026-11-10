@@ -10,6 +10,7 @@ pipeline {
         AWS_REGION = 'ap-south-1'
         S3_BUCKET  = 'vaishnavi-java-jar-artifacts-2026'
         APP_NAME   = 'java-devops-project'
+        APP_SERVER = '172.31.2.96'
     }
 
     stages {
@@ -52,15 +53,37 @@ pipeline {
                 }
             }
         }
+
+        stage('Deploy to Application EC2') {
+            steps {
+                sshagent(credentials: ['app-ec2-ssh-key']) {
+                    sh '''
+                        scp -o StrictHostKeyChecking=no \
+                        target/java-devops-project-1.0.0.jar \
+                        ubuntu@172.31.2.96:/home/ubuntu/java-app/app.jar
+
+                        ssh -o StrictHostKeyChecking=no \
+                        ubuntu@172.31.2.96 \
+                        "sudo -n /usr/bin/systemctl restart java-app"
+
+                        sleep 3
+
+                        ssh -o StrictHostKeyChecking=no \
+                        ubuntu@172.31.2.96 \
+                        "curl -fsS http://localhost:8080/api/hello"
+                    '''
+                }
+            }
+        }
     }
 
     post {
         success {
-            echo 'Build successful. JAR uploaded to S3.'
+            echo 'Build, S3 upload and EC2 deployment successful!'
         }
 
         failure {
-            echo 'Build failed. Check the Console Output for the error.'
+            echo 'Pipeline failed. Check Console Output.'
         }
     }
 }
