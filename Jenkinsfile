@@ -60,16 +60,16 @@ pipeline {
                     sh '''
                         scp -o StrictHostKeyChecking=no \
                         target/java-devops-project-1.0.0.jar \
-                        ubuntu@172.31.2.96:/home/ubuntu/java-app/app.jar
+                        ubuntu@172.31.3.96:/home/ubuntu/java-app/app.jar
 
                         ssh -o StrictHostKeyChecking=no \
-                        ubuntu@172.31.2.96 \
+                        ubuntu@172.31.3.96 \
                         "sudo -n /usr/bin/systemctl restart java-app"
 
                         sleep 3
 
                         ssh -o StrictHostKeyChecking=no \
-                        ubuntu@172.31.2.96 \
+                        ubuntu@172.31.3.96 \
                         "curl -fsS http://localhost:8080/api/hello"
                     '''
                 }
