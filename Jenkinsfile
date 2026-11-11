@@ -1,6 +1,9 @@
 
 pipeline {
-    agent any
+    
+    agent {
+    label 'temporary-agent'
+}
 
     tools {
         maven 'maven'
