@@ -1,3 +1,4 @@
+
 # Maven build output
 target/
 
@@ -23,3 +24,12 @@ version.txt
 # OS files
 .DS_Store
 Thumbs.db
+
+# Docker
+*.tar
+*.log.*
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
