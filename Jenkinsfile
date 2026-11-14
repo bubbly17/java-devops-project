@@ -1,9 +1,9 @@
 
 pipeline {
-    
+
     agent {
-    label 'temporary-agent'
-}
+        label 'temporary-agent'
+    }
 
     tools {
         maven 'maven'
@@ -17,6 +17,7 @@ pipeline {
     }
 
     stages {
+
         stage('Checkout') {
             steps {
                 checkout scm
@@ -57,7 +58,7 @@ pipeline {
             }
         }
 
-        stage('Deploy to Application EC2') {
+        stage('Deploy Java Application') {
             steps {
                 sshagent(credentials: ['app-ec2-ssh-key']) {
                     sh '''
@@ -78,11 +79,59 @@ pipeline {
                 }
             }
         }
+
+        stage('Docker Deployment') {
+            steps {
+                sshagent(credentials: ['app-ec2-ssh-key']) {
+                    sh '''
+                        echo "Copying Dockerfile and JAR to application EC2"
+
+                        ssh -o StrictHostKeyChecking=no \
+                        ubuntu@172.31.3.96 \
+                        "mkdir -p /home/ubuntu/java-app/target"
+
+                        scp -o StrictHostKeyChecking=no \
+                        Dockerfile \
+                        ubuntu@172.31.3.96:/home/ubuntu/java-app/Dockerfile
+
+                        scp -o StrictHostKeyChecking=no \
+                        target/java-devops-project-1.0.0.jar \
+                        ubuntu@172.31.3.96:/home/ubuntu/java-app/target/java-devops-project-1.0.0.jar
+
+                        echo "Building Docker image"
+
+                        ssh -o StrictHostKeyChecking=no \
+                        ubuntu@172.31.3.96 \
+                        "cd /home/ubuntu/java-app && sudo docker build -t java-devops-app:latest ."
+
+                        echo "Replacing old Docker container"
+
+                        ssh -o StrictHostKeyChecking=no \
+                        ubuntu@172.31.3.96 \
+                        "sudo docker rm -f java-devops-container 2>/dev/null || true"
+
+                        echo "Starting new Docker container"
+
+                        ssh -o StrictHostKeyChecking=no \
+                        ubuntu@172.31.3.96 \
+                        "sudo docker run -d --name java-devops-container --restart unless-stopped -p 8081:8080 java-devops-app:latest"
+
+                        sleep 5
+
+                        echo "Testing Docker application"
+
+                        ssh -o StrictHostKeyChecking=no \
+                        ubuntu@172.31.3.96 \
+                        "curl -fsS http://localhost:8081/api/hello"
+                    '''
+                }
+            }
+        }
     }
 
     post {
         success {
-            echo 'Build, S3 upload and EC2 deployment successful!'
+            echo 'Build, S3 upload, Java deployment and Docker deployment successful!'
         }
 
         failure {
