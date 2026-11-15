@@ -100,19 +100,19 @@ pipeline {
         stage('Prepare Docker Build') {
             steps {
                 sshagent(credentials: ['app-ec2-ssh-key']) {
-                    sh '''
+                    sh """
                         ssh -o StrictHostKeyChecking=no \
-                        ubuntu@${APP_SERVER} \
+                        ubuntu@${params.APP_SERVER} \
                         "mkdir -p /home/ubuntu/docker-build && rm -rf /home/ubuntu/docker-build/*"
 
                         scp -o StrictHostKeyChecking=no \
                         Dockerfile pom.xml \
-                        ubuntu@${APP_SERVER}:/home/ubuntu/docker-build/
+                        ubuntu@${params.APP_SERVER}:/home/ubuntu/docker-build/
 
                         scp -r -o StrictHostKeyChecking=no \
                         src \
-                        ubuntu@${APP_SERVER}:/home/ubuntu/docker-build/
-                    '''
+                        ubuntu@${params.APP_SERVER}:/home/ubuntu/docker-build/
+                    """
                 }
             }
         }
