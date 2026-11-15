@@ -9,16 +9,36 @@ pipeline {
         maven 'maven'
     }
 
-    environment {
-        AWS_REGION = 'ap-south-1'
-        AWS_ACCOUNT_ID = '324464329126'
+    parameters {
+        string(
+            name: 'AWS_REGION',
+            defaultValue: 'ap-south-1',
+            description: 'Enter your AWS region'
+        )
 
-        S3_BUCKET = 'vaishnavi-java-jar-artifacts-2026'
-        APP_NAME = 'java-devops-project'
+        string(
+            name: 'S3_BUCKET',
+            defaultValue: 'vaishnavi-java-jar-artifacts-2026',
+            description: 'Enter the S3 bucket name'
+        )
 
-        APP_SERVER = '172.31.3.96'
+        string(
+            name: 'APP_NAME',
+            defaultValue: 'java-devops-project',
+            description: 'Enter your Maven application name'
+        )
 
-        ECR_REPO = '324464329126.dkr.ecr.ap-south-1.amazonaws.com/java-devops-project'
+        string(
+            name: 'APP_SERVER',
+            defaultValue: '172.31.3.96',
+            description: 'Enter the private IP of the EC2 Docker build server'
+        )
+
+        string(
+            name: 'ECR_REPO',
+            defaultValue: '324464329126.dkr.ecr.ap-south-1.amazonaws.com/java-devops-project',
+            description: 'Enter the complete ECR repository URI'
+        )
     }
 
     stages {
@@ -52,35 +72,27 @@ pipeline {
             steps {
                 script {
                     def version = new Date().format('yyyyMMdd-HHmmss')
-                    def jarFile = "target/${APP_NAME}-1.0.0.jar"
+
+                    def jarFile = sh(
+                        script: """
+                            find target -maxdepth 1 -type f \
+                            -name '${params.APP_NAME}-*.jar' \
+                            ! -name '*-sources.jar' \
+                            ! -name '*-javadoc.jar' \
+                            | head -n 1
+                        """,
+                        returnStdout: true
+                    ).trim()
+
+                    if (!jarFile) {
+                        error "No JAR found for ${params.APP_NAME}"
+                    }
 
                     sh """
                         aws s3 cp "${jarFile}" \
-                        s3://${S3_BUCKET}/${APP_NAME}/${APP_NAME}-${version}.jar \
-                        --region ${AWS_REGION}
+                        "s3://${params.S3_BUCKET}/${params.APP_NAME}/${params.APP_NAME}-${version}.jar" \
+                        --region "${params.AWS_REGION}"
                     """
-                }
-            }
-        }
-
-        stage('Deploy Java Application') {
-            steps {
-                sshagent(credentials: ['app-ec2-ssh-key']) {
-                    sh '''
-                        scp -o StrictHostKeyChecking=no \
-                        target/java-devops-project-1.0.0.jar \
-                        ubuntu@${APP_SERVER}:/home/ubuntu/java-app/app.jar
-
-                        ssh -o StrictHostKeyChecking=no \
-                        ubuntu@${APP_SERVER} \
-                        "sudo -n /usr/bin/systemctl restart java-app"
-
-                        sleep 3
-
-                        ssh -o StrictHostKeyChecking=no \
-                        ubuntu@${APP_SERVER} \
-                        "curl -fsS http://localhost:8080/api/hello"
-                    '''
                 }
             }
         }
@@ -91,15 +103,15 @@ pipeline {
                     sh '''
                         ssh -o StrictHostKeyChecking=no \
                         ubuntu@${APP_SERVER} \
-                        "mkdir -p /home/ubuntu/java-app/target"
+                        "mkdir -p /home/ubuntu/docker-build && rm -rf /home/ubuntu/docker-build/*"
 
                         scp -o StrictHostKeyChecking=no \
-                        Dockerfile \
-                        ubuntu@${APP_SERVER}:/home/ubuntu/java-app/Dockerfile
+                        Dockerfile pom.xml \
+                        ubuntu@${APP_SERVER}:/home/ubuntu/docker-build/
 
-                        scp -o StrictHostKeyChecking=no \
-                        target/java-devops-project-1.0.0.jar \
-                        ubuntu@${APP_SERVER}:/home/ubuntu/java-app/target/java-devops-project-1.0.0.jar
+                        scp -r -o StrictHostKeyChecking=no \
+                        src \
+                        ubuntu@${APP_SERVER}:/home/ubuntu/docker-build/
                     '''
                 }
             }
@@ -109,58 +121,25 @@ pipeline {
             steps {
                 script {
                     def imageTag = "build-${BUILD_NUMBER}"
+                    def registry = params.ECR_REPO.split('/')[0]
 
                     sshagent(credentials: ['app-ec2-ssh-key']) {
                         sh """
                             ssh -o StrictHostKeyChecking=no \
-                            ubuntu@${APP_SERVER} \
-                            "aws ecr get-login-password --region ${AWS_REGION} | sudo docker login --username AWS --password-stdin ${ECR_REPO.split('/')[0]}"
+                            ubuntu@${params.APP_SERVER} \
+                            "aws ecr get-login-password --region ${params.AWS_REGION} | sudo docker login --username AWS --password-stdin ${registry}"
 
                             ssh -o StrictHostKeyChecking=no \
-                            ubuntu@${APP_SERVER} \
-                            "cd /home/ubuntu/java-app && sudo docker build -t ${ECR_REPO}:${imageTag} ."
+                            ubuntu@${params.APP_SERVER} \
+                            "cd /home/ubuntu/docker-build && sudo docker build -t ${params.ECR_REPO}:${imageTag} ."
 
                             ssh -o StrictHostKeyChecking=no \
-                            ubuntu@${APP_SERVER} \
-                            "sudo docker push ${ECR_REPO}:${imageTag}"
+                            ubuntu@${params.APP_SERVER} \
+                            "sudo docker push ${params.ECR_REPO}:${imageTag}"
                         """
                     }
 
-                    env.IMAGE_TAG = imageTag
-                }
-            }
-        }
-
-        stage('Deploy from ECR') {
-            steps {
-                sshagent(credentials: ['app-ec2-ssh-key']) {
-                    sh '''
-                        echo "Pulling image from ECR"
-
-                        ssh -o StrictHostKeyChecking=no \
-                        ubuntu@${APP_SERVER} \
-                        "sudo docker pull ${ECR_REPO}:${IMAGE_TAG}"
-
-                        echo "Removing old container"
-
-                        ssh -o StrictHostKeyChecking=no \
-                        ubuntu@${APP_SERVER} \
-                        "sudo docker rm -f java-devops-container 2>/dev/null || true"
-
-                        echo "Starting new container"
-
-                        ssh -o StrictHostKeyChecking=no \
-                        ubuntu@${APP_SERVER} \
-                        "sudo docker run -d --name java-devops-container --restart unless-stopped -p 8081:8080 ${ECR_REPO}:${IMAGE_TAG}"
-
-                        sleep 5
-
-                        echo "Testing deployed application"
-
-                        ssh -o StrictHostKeyChecking=no \
-                        ubuntu@${APP_SERVER} \
-                        "curl -fsS http://localhost:8081/api/hello"
-                    '''
+                    echo "Docker image pushed: ${params.ECR_REPO}:${imageTag}"
                 }
             }
         }
@@ -168,7 +147,7 @@ pipeline {
 
     post {
         success {
-            echo 'SUCCESS: Maven build, S3 upload, Java deployment, ECR push and Docker deployment completed!'
+            echo 'SUCCESS: Maven build, S3 upload, Docker build and ECR push completed!'
         }
 
         failure {
