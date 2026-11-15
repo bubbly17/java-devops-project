@@ -1,87 +1,176 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DevOps Cloud Portfolio</title>
+    <title>CloudOps | DevOps Portfolio</title>
     <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 
-    <header class="header">
-        <div class="container nav">
-            <h2 class="logo">Cloud<span>Ops</span></h2>
-            <nav>
-                <a href="#about">About</a>
-                <a href="#skills">Skills</a>
-                <a href="#project">Project</a>
-            </nav>
+<header class="header">
+    <div class="container nav">
+        <h2 class="logo">Cloud<span>Ops</span></h2>
+        <nav>
+            <a href="#about">About</a>
+            <a href="#skills">Technologies</a>
+            <a href="#pipeline">Pipeline</a>
+            <a href="#project">Project</a>
+        </nav>
+    </div>
+</header>
+
+<main>
+
+    <section class="hero container">
+        <div class="hero-content">
+            <p class="eyebrow">JAVA • AWS • DEVOPS ENGINEERING</p>
+
+            <h1>Building and Deploying Applications with DevOps</h1>
+
+            <p class="description">
+                A hands-on cloud project demonstrating automated builds,
+                containerization and deployment using AWS and Jenkins.
+            </p>
+
+            <a class="button" href="#pipeline">Explore My Pipeline</a>
         </div>
-    </header>
 
-    <main>
-        <section class="hero container">
-            <div class="hero-content">
-                <p class="eyebrow">JAVA • AWS • DEVOPS</p>
-                <h1>I really want a Job in devops. Please help me.! </h1>
-                <p class="description">
-                    A simple Java web application built with clean code
-                    and delivered through an automated cloud pipeline.
-                </p>
-                <a class="button" href="#project">Explore Project</a>
+        <div class="hero-card">
+            <p class="eyebrow">APPLICATION STATUS</p>
+            <div class="status">
+                <span class="status-dot" id="statusDot"></span>
+                <span id="statusText">Checking application...</span>
             </div>
 
-            <div class="hero-card">
-                <div class="status">
-                    <span class="status-dot"></span>
-                    Application Online
-                </div>
-                <h3>CI Pipeline</h3>
-                <p>Source → Build → Test → Artifact</p>
-                <div class="pipeline">
-                    <span>GitHub</span>
-                    <span>Jenkins</span>
-                    <span>AWS S3</span>
-                </div>
+            <h3>Java Application</h3>
+            <p id="apiMessage">Waiting for API response...</p>
+
+            <button class="button" onclick="checkHealth()">
+                Check Health
+            </button>
+        </div>
+    </section>
+
+    <section id="about" class="section container">
+        <p class="eyebrow">ABOUT THE PROJECT</p>
+        <h2>From source code to cloud deployment</h2>
+
+        <p>
+            This project demonstrates a practical CI/CD workflow.
+            Code is stored in GitHub, built using Maven and Jenkins,
+            packaged as a Docker image, stored in Amazon ECR and
+            deployed on AWS EC2.
+        </p>
+    </section>
+
+    <section id="skills" class="section container">
+        <p class="eyebrow">TECHNOLOGY STACK</p>
+        <h2>Tools and technologies</h2>
+
+        <div class="skills">
+            <div class="skill">Java 21</div>
+            <div class="skill">Maven</div>
+            <div class="skill">Git & GitHub</div>
+            <div class="skill">Jenkins</div>
+            <div class="skill">AWS EC2</div>
+            <div class="skill">Amazon S3</div>
+            <div class="skill">Amazon ECR</div>
+            <div class="skill">Docker</div>
+            <div class="skill">Linux</div>
+        </div>
+    </section>
+
+    <section id="pipeline" class="section container">
+        <p class="eyebrow">AUTOMATION WORKFLOW</p>
+        <h2>My CI/CD Pipeline</h2>
+
+        <div class="pipeline">
+            <div class="pipeline-step">GitHub</div>
+            <div class="pipeline-arrow">→</div>
+            <div class="pipeline-step">Jenkins</div>
+            <div class="pipeline-arrow">→</div>
+            <div class="pipeline-step">Maven</div>
+            <div class="pipeline-arrow">→</div>
+            <div class="pipeline-step">Docker</div>
+            <div class="pipeline-arrow">→</div>
+            <div class="pipeline-step">Amazon ECR</div>
+            <div class="pipeline-arrow">→</div>
+            <div class="pipeline-step">AWS EC2</div>
+        </div>
+    </section>
+
+    <section id="project" class="section container">
+        <p class="eyebrow">DEPLOYED PROJECT</p>
+        <h2>Automated Java Cloud Deployment</h2>
+
+        <p>
+            A Java application packaged with Maven, built through
+            Jenkins, containerized using Docker and deployed on
+            an AWS EC2 instance using an image stored in Amazon ECR.
+        </p>
+
+        <div class="project-info">
+            <div>
+                <h3>Build Automation</h3>
+                <p>Jenkins and Maven</p>
             </div>
-        </section>
 
-        <section id="about" class="section container">
-            <p class="eyebrow">ABOUT</p>
-            <h2>Simple application. Automated delivery.</h2>
-            <p>
-                This project demonstrates how a Java application can be
-                built, tested, and packaged automatically using DevOps tools.
-            </p>
-        </section>
-
-        <section id="skills" class="section container">
-            <p class="eyebrow">TECHNOLOGIES</p>
-            <h2>Tools used</h2>
-
-            <div class="skills">
-                <div class="skill">Java 21</div>
-                <div class="skill">Maven</div>
-                <div class="skill">GitHub</div>
-                <div class="skill">Jenkins</div>
-                <div class="skill">AWS EC2</div>
-                <div class="skill">Amazon S3</div>
+            <div>
+                <h3>Artifact Storage</h3>
+                <p>Amazon S3</p>
             </div>
-        </section>
 
-        <section id="project" class="section container">
-            <p class="eyebrow">PROJECT</p>
-            <h2>Automated Java Build</h2>
-            <p>
-                A CI pipeline that builds the Java application on a temporary
-                Jenkins agent and stores the generated JAR file in Amazon S3.
-            </p>
-        </section>
-    </main>
+            <div>
+                <h3>Container Registry</h3>
+                <p>Amazon ECR</p>
+            </div>
 
-    <footer>
-        <p>DevOps Cloud Portfolio · Java Web Application</p>
-    </footer>
+            <div>
+                <h3>Deployment</h3>
+                <p>Docker on AWS EC2</p>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<footer>
+    <p>CloudOps Portfolio | Built with Java, AWS and DevOps Tools</p>
+</footer>
+
+<script>
+async function checkHealth() {
+    const statusText = document.getElementById("statusText");
+    const statusDot = document.getElementById("statusDot");
+    const apiMessage = document.getElementById("apiMessage");
+
+    statusText.textContent = "Checking...";
+    apiMessage.textContent = "Contacting Java API...";
+
+    try {
+        const response = await fetch("/api/hello");
+
+        if (!response.ok) {
+            throw new Error("API request failed");
+        }
+
+        const data = await response.json();
+
+        statusText.textContent = "Application Online";
+        statusDot.classList.add("online");
+        apiMessage.textContent = data.message;
+
+    } catch (error) {
+        statusText.textContent = "Application Offline";
+        statusDot.classList.remove("online");
+        apiMessage.textContent = "Unable to connect to Java API.";
+    }
+}
+
+checkHealth();
+</script>
 
 </body>
 </html>
