@@ -58,6 +58,10 @@ pipeline {
         stage('Validate Git Tag') {
             steps {
                 script {
+
+                    echo "DEBUG params.TAG_NAME = ${params.TAG_NAME}"
+                    echo "DEBUG env.TAG_NAME = ${env.TAG_NAME}"
+
                     def tagName = params.TAG_NAME?.trim()
 
                     if (!tagName) {
