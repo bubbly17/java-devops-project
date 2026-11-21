@@ -11,6 +11,12 @@ pipeline {
 
     parameters {
         string(
+            name: 'TAG_NAME',
+            defaultValue: 'v1.0',
+            description: 'Git release tag to build, e.g. v1.0'
+        )
+
+        string(
             name: 'AWS_REGION',
             defaultValue: 'ap-south-1',
             description: 'Enter your AWS region'
@@ -49,27 +55,37 @@ pipeline {
 
     stages {
 
-        stage('Checkout') {
-            steps {
-                checkout scm
-            }
-        }
-
         stage('Validate Git Tag') {
             steps {
                 script {
-                    if (!env.TAG_NAME) {
-                        error 'No Git tag detected. Trigger this pipeline using a Git tag.'
+                    def tagName = params.TAG_NAME?.trim()
+
+                    if (!tagName) {
+                        error 'TAG_NAME parameter is empty.'
                     }
 
-                    if (!(env.TAG_NAME ==~ /v[0-9]+\.[0-9]+(\.[0-9]+)?/)) {
-                        error "Invalid tag: ${env.TAG_NAME}. Use v1.0 or v1.0.0."
+                    if (!(tagName ==~ /^v[0-9]+\.[0-9]+(\.[0-9]+)?$/)) {
+                        error "Invalid tag: ${tagName}. Use v1.0 or v1.0.0."
                     }
 
-                    env.RELEASE_VERSION = env.TAG_NAME
+                    env.RELEASE_VERSION = tagName
 
                     echo "Release Version: ${env.RELEASE_VERSION}"
                 }
+            }
+        }
+
+        stage('Checkout Release Tag') {
+            steps {
+                checkout scm
+
+                sh """
+                    git rev-parse --verify "refs/tags/${env.RELEASE_VERSION}^{commit}" >/dev/null
+                    git checkout --force "refs/tags/${env.RELEASE_VERSION}"
+
+                    echo "Checked out release tag: ${env.RELEASE_VERSION}"
+                    git log -1 --oneline
+                """
             }
         }
 
@@ -128,7 +144,7 @@ pipeline {
         stage('Upload JAR to S3') {
             steps {
                 sh """
-                    aws s3 cp "${RELEASE_JAR_PATH}" \
+                    aws s3 cp "${env.RELEASE_JAR_PATH}" \
                     "s3://${params.S3_BUCKET}/${params.APP_NAME}/${env.RELEASE_JAR}" \
                     --region "${params.AWS_REGION}"
                 """
@@ -144,7 +160,7 @@ pipeline {
                         ssh -o StrictHostKeyChecking=no \
                         ubuntu@${params.APP_SERVER} \
                         "mkdir -p /home/ubuntu/docker-build && \
-                        rm -rf /home/ubuntu/docker-build/*"
+                        find /home/ubuntu/docker-build -mindepth 1 -maxdepth 1 -exec rm -rf {} +"
 
                         scp -o StrictHostKeyChecking=no \
                         Dockerfile pom.xml \
