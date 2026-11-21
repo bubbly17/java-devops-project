@@ -48,7 +48,6 @@ pipeline {
     }
 
     environment {
-        RELEASE_VERSION = ''
         RELEASE_JAR = ''
         RELEASE_JAR_PATH = ''
     }
@@ -58,10 +57,6 @@ pipeline {
         stage('Validate Git Tag') {
             steps {
                 script {
-
-                    echo "DEBUG params.TAG_NAME = ${params.TAG_NAME}"
-                    echo "DEBUG env.TAG_NAME = ${env.TAG_NAME}"
-
                     def tagName = params.TAG_NAME?.trim()
 
                     if (!tagName) {
@@ -72,9 +67,7 @@ pipeline {
                         error "Invalid tag: ${tagName}. Use v1.0 or v1.0.0."
                     }
 
-                    env.RELEASE_VERSION = tagName
-
-                    echo "Release Version: ${env.RELEASE_VERSION}"
+                    echo "Release Version: ${params.TAG_NAME}"
                 }
             }
         }
@@ -84,10 +77,12 @@ pipeline {
                 checkout scm
 
                 sh """
-                    git rev-parse --verify "refs/tags/${env.RELEASE_VERSION}^{commit}" >/dev/null
-                    git checkout --force "refs/tags/${env.RELEASE_VERSION}"
+                    git rev-parse --verify "refs/tags/${params.TAG_NAME}^{commit}" >/dev/null
 
-                    echo "Checked out release tag: ${env.RELEASE_VERSION}"
+                    git checkout --force "refs/tags/${params.TAG_NAME}"
+
+                    echo "Checked out release tag: ${params.TAG_NAME}"
+
                     git log -1 --oneline
                 """
             }
@@ -118,7 +113,7 @@ pipeline {
                     }
 
                     env.RELEASE_JAR =
-                        "${params.APP_NAME}-${env.RELEASE_VERSION}.jar"
+                        "${params.APP_NAME}-${params.TAG_NAME}.jar"
 
                     env.RELEASE_JAR_PATH =
                         "target/${env.RELEASE_JAR}"
@@ -181,7 +176,7 @@ pipeline {
         stage('Docker Build and Push to ECR') {
             steps {
                 script {
-                    def imageTag = env.RELEASE_VERSION
+                    def imageTag = params.TAG_NAME
                     def registry = params.ECR_REPO.split('/')[0]
 
                     sshagent(credentials: ['app-ec2-ssh-key']) {
@@ -217,10 +212,10 @@ pipeline {
         success {
             echo """
             SUCCESS!
-            Release Version: ${env.RELEASE_VERSION}
+            Release Version: ${params.TAG_NAME}
             JAR: ${env.RELEASE_JAR}
             S3: ${params.S3_BUCKET}/${params.APP_NAME}/${env.RELEASE_JAR}
-            Docker: ${params.ECR_REPO}:${env.RELEASE_VERSION}
+            Docker: ${params.ECR_REPO}:${params.TAG_NAME}
             """
         }
 
