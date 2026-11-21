@@ -1,6 +1,5 @@
 
 pipeline {
-
     agent {
         label 'temporary-agent'
     }
@@ -13,43 +12,38 @@ pipeline {
         string(
             name: 'TAG_NAME',
             defaultValue: 'v1.0',
-            description: 'Git release tag to build, e.g. v1.0'
+            description: 'Git release tag, for example v1.0'
         )
 
         string(
             name: 'AWS_REGION',
             defaultValue: 'ap-south-1',
-            description: 'Enter your AWS region'
+            description: 'AWS region'
         )
 
         string(
             name: 'S3_BUCKET',
             defaultValue: 'vaishnavi-java-jar-artifacts-2026',
-            description: 'Enter the S3 bucket name'
+            description: 'S3 bucket name'
         )
 
         string(
             name: 'APP_NAME',
             defaultValue: 'java-devops-project',
-            description: 'Enter your Maven application name'
+            description: 'Application name'
         )
 
         string(
             name: 'APP_SERVER',
             defaultValue: '172.31.3.96',
-            description: 'Private IP of the EC2 Docker build server'
+            description: 'Docker build EC2 private IP'
         )
 
         string(
             name: 'ECR_REPO',
             defaultValue: '324464329126.dkr.ecr.ap-south-1.amazonaws.com/java-devops-project',
-            description: 'Complete ECR repository URI'
+            description: 'ECR repository URL'
         )
-    }
-
-    environment {
-        RELEASE_JAR = ''
-        RELEASE_JAR_PATH = ''
     }
 
     stages {
@@ -60,14 +54,14 @@ pipeline {
                     def tagName = params.TAG_NAME?.trim()
 
                     if (!tagName) {
-                        error 'TAG_NAME parameter is empty.'
+                        error 'TAG_NAME cannot be empty'
                     }
 
                     if (!(tagName ==~ /^v[0-9]+\.[0-9]+(\.[0-9]+)?$/)) {
-                        error "Invalid tag: ${tagName}. Use v1.0 or v1.0.0."
+                        error "Invalid tag format: ${tagName}. Use v1.0 or v1.0.0"
                     }
 
-                    echo "Release Version: ${params.TAG_NAME}"
+                    echo "Release Version: ${tagName}"
                 }
             }
         }
@@ -77,6 +71,8 @@ pipeline {
                 checkout scm
 
                 sh """
+                    git fetch --tags --force
+
                     git rev-parse --verify "refs/tags/${params.TAG_NAME}^{commit}" >/dev/null
 
                     git checkout --force "refs/tags/${params.TAG_NAME}"
@@ -112,43 +108,41 @@ pipeline {
                         error "No JAR found for ${params.APP_NAME}"
                     }
 
-                    env.RELEASE_JAR =
-                        "${params.APP_NAME}-${params.TAG_NAME}.jar"
+                    def releaseJar = "${params.APP_NAME}-${params.TAG_NAME}.jar"
+                    def releaseJarPath = "target/${releaseJar}"
 
-                    env.RELEASE_JAR_PATH =
-                        "target/${env.RELEASE_JAR}"
+                    sh "cp '${jarFile}' '${releaseJarPath}'"
 
-                    sh """
-                        cp "${jarFile}" "${env.RELEASE_JAR_PATH}"
-                    """
-
-                    echo "Created JAR: ${env.RELEASE_JAR}"
+                    echo "Created JAR: ${releaseJarPath}"
                 }
             }
         }
 
         stage('Verify JAR') {
             steps {
-                sh 'ls -lh "${RELEASE_JAR_PATH}"'
+                sh """
+                    ls -lh "target/${params.APP_NAME}-${params.TAG_NAME}.jar"
+                """
             }
         }
 
         stage('Check AWS CLI') {
             steps {
-                sh 'which aws'
-                sh 'aws --version'
+                sh """
+                    which aws
+                    aws --version
+                """
             }
         }
 
         stage('Upload JAR to S3') {
             steps {
                 sh """
-                    aws s3 cp "${env.RELEASE_JAR_PATH}" \
-                    "s3://${params.S3_BUCKET}/${params.APP_NAME}/${env.RELEASE_JAR}" \
+                    aws s3 cp \
+                    "target/${params.APP_NAME}-${params.TAG_NAME}.jar" \
+                    "s3://${params.S3_BUCKET}/${params.APP_NAME}/${params.APP_NAME}-${params.TAG_NAME}.jar" \
                     --region "${params.AWS_REGION}"
                 """
-
-                echo "S3 upload completed for ${env.RELEASE_JAR}"
             }
         }
 
@@ -156,18 +150,15 @@ pipeline {
             steps {
                 sshagent(credentials: ['app-ec2-ssh-key']) {
                     sh """
-                        ssh -o StrictHostKeyChecking=no \
-                        ubuntu@${params.APP_SERVER} \
-                        "mkdir -p /home/ubuntu/docker-build && \
-                        find /home/ubuntu/docker-build -mindepth 1 -maxdepth 1 -exec rm -rf {} +"
+                        ssh -o StrictHostKeyChecking=no ubuntu@${params.APP_SERVER} \
+                        'mkdir -p /home/ubuntu/docker-build && rm -rf /home/ubuntu/docker-build/*'
 
-                        scp -o StrictHostKeyChecking=no \
-                        Dockerfile pom.xml \
-                        ubuntu@${params.APP_SERVER}:/home/ubuntu/docker-build/
+                        scp -o StrictHostKeyChecking=no Dockerfile \
+                            pom.xml \
+                            ubuntu@${params.APP_SERVER}:/home/ubuntu/docker-build/
 
-                        scp -r -o StrictHostKeyChecking=no \
-                        src \
-                        ubuntu@${params.APP_SERVER}:/home/ubuntu/docker-build/
+                        scp -r -o StrictHostKeyChecking=no src \
+                            ubuntu@${params.APP_SERVER}:/home/ubuntu/docker-build/
                     """
                 }
             }
@@ -175,34 +166,20 @@ pipeline {
 
         stage('Docker Build and Push to ECR') {
             steps {
-                script {
-                    def imageTag = params.TAG_NAME
-                    def registry = params.ECR_REPO.split('/')[0]
+                sshagent(credentials: ['app-ec2-ssh-key']) {
+                    sh """
+                        ssh -o StrictHostKeyChecking=no ubuntu@${params.APP_SERVER} '
+                            cd /home/ubuntu/docker-build
 
-                    sshagent(credentials: ['app-ec2-ssh-key']) {
-                        sh """
-                            ssh -o StrictHostKeyChecking=no \
-                            ubuntu@${params.APP_SERVER} \
-                            "aws ecr get-login-password \
-                            --region ${params.AWS_REGION} | \
-                            sudo docker login \
-                            --username AWS \
-                            --password-stdin ${registry}"
+                            aws ecr get-login-password --region ${params.AWS_REGION} \
+                            | sudo docker login --username AWS --password-stdin ${params.ECR_REPO.split('/')[0]}
 
-                            ssh -o StrictHostKeyChecking=no \
-                            ubuntu@${params.APP_SERVER} \
-                            "cd /home/ubuntu/docker-build && \
                             sudo docker build \
-                            -t ${params.ECR_REPO}:${imageTag} ."
+                            -t ${params.ECR_REPO}:${params.TAG_NAME} .
 
-                            ssh -o StrictHostKeyChecking=no \
-                            ubuntu@${params.APP_SERVER} \
-                            "sudo docker push \
-                            ${params.ECR_REPO}:${imageTag}"
-                        """
-                    }
-
-                    echo "Docker image pushed: ${params.ECR_REPO}:${imageTag}"
+                            sudo docker push ${params.ECR_REPO}:${params.TAG_NAME}
+                        '
+                    """
                 }
             }
         }
@@ -211,16 +188,36 @@ pipeline {
     post {
         success {
             echo """
-            SUCCESS!
-            Release Version: ${params.TAG_NAME}
-            JAR: ${env.RELEASE_JAR}
-            S3: ${params.S3_BUCKET}/${params.APP_NAME}/${env.RELEASE_JAR}
-            Docker: ${params.ECR_REPO}:${params.TAG_NAME}
+            ==========================================
+                     PIPELINE SUCCESS
+            ==========================================
+
+            Application : ${params.APP_NAME}
+            Release Tag : ${params.TAG_NAME}
+
+            S3 JAR:
+            s3://${params.S3_BUCKET}/${params.APP_NAME}/${params.APP_NAME}-${params.TAG_NAME}.jar
+
+            ECR Image:
+            ${params.ECR_REPO}:${params.TAG_NAME}
+
+            ==========================================
             """
         }
 
         failure {
-            echo 'Pipeline failed. Check Console Output.'
+            echo """
+            ==========================================
+                     PIPELINE FAILED
+            ==========================================
+
+            Application : ${params.APP_NAME}
+            Release Tag : ${params.TAG_NAME}
+
+            Check the Jenkins Console Output for errors.
+
+            ==========================================
+            """
         }
     }
 }
